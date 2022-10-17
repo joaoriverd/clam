@@ -4,6 +4,7 @@
 #include "dis_intervals.hh"
 #include "intervals.hh"
 #include "oct.hh"
+#include "tvpi.hh"
 #include "pk.hh"
 #include "ric.hh"
 #include "split_dbm.hh"

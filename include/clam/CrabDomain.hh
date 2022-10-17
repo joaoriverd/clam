@@ -65,8 +65,9 @@ constexpr Type TERMS_DIS_INTERVALS(9, "term-dis-int",
 constexpr Type TERMS_ZONES(10, "rtz", "terms+zones", true, false);
 constexpr Type OCT(11, "oct", "octagons from Apron or Elina", true, false);
 constexpr Type PK(12, "pk", "polyhedra from Apron or Elina", true, false);
-constexpr Type SIGN_CONSTANTS(13, "sign-const", "sign+constants", false, false);  
-constexpr std::array<Type, 13> List = {INTERVALS,
+constexpr Type TVPI(13, "tvpi", "tvpi from Elina", true, false);
+constexpr Type SIGN_CONSTANTS(14, "sign-const", "sign+constants", false, false);
+constexpr std::array<Type, 14> List = {INTERVALS,
                                        INTERVALS_CONGRUENCES,
                                        WRAPPED_INTERVALS,
                                        BOXES,
@@ -78,6 +79,7 @@ constexpr std::array<Type, 13> List = {INTERVALS,
                                        TERMS_ZONES,
                                        OCT,
                                        PK,
+                                       TVPI,
 				       SIGN_CONSTANTS};
 } // end namespace CrabDomain
 } // end namespace clam

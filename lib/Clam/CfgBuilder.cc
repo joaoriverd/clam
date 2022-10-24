@@ -457,57 +457,100 @@ cmpInstToCrabInt(CmpInst &I, crabLitFactory &lfac,
   const Value &v1 = *I.getOperand(1);
 
   crab_lit_ref_t ref0 = lfac.getLit(v0);
-  if (!ref0 || !(ref0->isInt()))
+  if (!ref0 || (!ref0->isInt() && !ref0->isFP()))
     return llvm::None;
 
   crab_lit_ref_t ref1 = lfac.getLit(v1);
-  if (!ref1 || !(ref1->isInt()))
+  if (!ref1 || (!ref1->isInt() && !ref1->isFP()))
     return llvm::None;
 
   lin_exp_t op0 = lfac.getExp(ref0);
   lin_exp_t op1 = lfac.getExp(ref1);
 
-  switch (I.getPredicate()) {
-  case CmpInst::ICMP_EQ:
-    if (!isNegated)
-      return lin_cst_t(op0 == op1);
-    else
-      return lin_cst_t(op0 != op1);
-    break;
-  case CmpInst::ICMP_NE:
-    if (!isNegated)
-      return lin_cst_t(op0 != op1);
-    else
-      return lin_cst_t(op0 == op1);
-    break;
-  case CmpInst::ICMP_ULT:
-  case CmpInst::ICMP_SLT: {
-    lin_cst_t cst;
-    if (!isNegated)
-      cst = lin_cst_t(op0 <= op1 - number_t(1));
-    else
-      cst = lin_cst_t(op0 >= op1);
-    if (I.getPredicate() == CmpInst::ICMP_ULT) {
-      cst.set_unsigned();
+  if (ref0->isInt()) {
+    switch (I.getPredicate()) {
+      case CmpInst::ICMP_EQ:
+        if (!isNegated)
+          return lin_cst_t(op0 == op1);
+        else
+          return lin_cst_t(op0 != op1);
+        break;
+      case CmpInst::ICMP_NE:
+        if (!isNegated)
+          return lin_cst_t(op0 != op1);
+        else
+          return lin_cst_t(op0 == op1);
+        break;
+      case CmpInst::ICMP_ULT:
+      case CmpInst::ICMP_SLT: {
+        lin_cst_t cst;
+        if (!isNegated)
+          cst = lin_cst_t(op0 <= op1 - number_t(1));
+        else
+          cst = lin_cst_t(op0 >= op1);
+        if (I.getPredicate() == CmpInst::ICMP_ULT) {
+          cst.set_unsigned();
+        }
+        return cst;
+        break;
+      }
+      case CmpInst::ICMP_ULE:
+      case CmpInst::ICMP_SLE: {
+        lin_cst_t cst;
+        if (!isNegated)
+          cst = lin_cst_t(op0 <= op1);
+        else
+          cst = lin_cst_t(op0 >= op1 + number_t(1));
+        if (I.getPredicate() == CmpInst::ICMP_ULE) {
+          cst.set_unsigned();
+        }
+        return cst;
+        break;
+      }
+      default:;
+        ;
     }
-    return cst;
-    break;
   }
-  case CmpInst::ICMP_ULE:
-  case CmpInst::ICMP_SLE: {
-    lin_cst_t cst;
-    if (!isNegated)
-      cst = lin_cst_t(op0 <= op1);
-    else
-      cst = lin_cst_t(op0 >= op1 + number_t(1));
-    if (I.getPredicate() == CmpInst::ICMP_ULE) {
-      cst.set_unsigned();
+
+  if (ref0->isFP()) {
+    switch (I.getPredicate()) {
+      case CmpInst::FCMP_OEQ:
+      case CmpInst::FCMP_UEQ:
+        if (!isNegated)
+          return lin_cst_t(op0 == op1);
+        else
+          return lin_cst_t(op0 != op1);
+        break;
+      case CmpInst::FCMP_ONE:
+      case CmpInst::FCMP_UNE:
+        if (!isNegated)
+          return lin_cst_t(op0 != op1);
+        else
+          return lin_cst_t(op0 == op1);
+        break;
+      case CmpInst::FCMP_OLT:
+      case CmpInst::FCMP_ULT: {
+        lin_cst_t cst;
+        if (!isNegated)
+          cst = lin_cst_t(op0 < op1);
+        else
+          cst = lin_cst_t(op0 >= op1);
+        return cst;
+        break;
+      }
+      case CmpInst::FCMP_OLE:
+      case CmpInst::FCMP_ULE: {
+        lin_cst_t cst;
+        if (!isNegated)
+          cst = lin_cst_t(op0 <= op1);
+        else
+          cst = lin_cst_t(op0 > op1);
+        return cst;
+        break;
+      }
+      default:;
+        ;
     }
-    return cst;
-    break;
-  }
-  default:;
-    ;
   }
   return llvm::None;
 }
@@ -1418,6 +1461,14 @@ void CrabIntraBlockBuilder::doBinOp(unsigned op, var_t lhs, lin_exp_t op1,
     CRAB_BINARY_OPERATION(ashr, >>, "ashr")
   case BinaryOperator::LShr:
     CRAB_BINARY_OPERATION_NO_BOTH_CONSTANT(lshr, "lshr")
+  case BinaryOperator::FAdd:
+    CRAB_BINARY_OPERATION(add, +, "fadd")
+  case BinaryOperator::FSub:
+    CRAB_BINARY_OPERATION(sub, -, "fsub")
+  case BinaryOperator::FMul:
+    CRAB_BINARY_OPERATION(mul, *, "fmul")
+  case BinaryOperator::FDiv:
+    CRAB_BINARY_OPERATION(div, /, "fdiv")
   default:;
     ;
   }
@@ -1426,8 +1477,8 @@ void CrabIntraBlockBuilder::doBinOp(unsigned op, var_t lhs, lin_exp_t op1,
 
 void CrabIntraBlockBuilder::doArithmetic(crab_lit_ref_t lit,
                                          BinaryOperator &i) {
-  if (!lit || !lit->isVar() || !(lit->isInt())) {
-    CLAM_ERROR("lhs of arithmetic operation must be an integer");
+  if (!lit || !lit->isVar() || (!lit->isInt() && !lit->isFP())) {
+    CLAM_ERROR("lhs of arithmetic operation must be an integer or floating-point");
   }
   var_t lhs = lit->getVar();
 
@@ -1435,13 +1486,13 @@ void CrabIntraBlockBuilder::doArithmetic(crab_lit_ref_t lit,
   const Value &v2 = *i.getOperand(1);
 
   crab_lit_ref_t lit1 = m_lfac.getLit(v1);
-  if (!lit1 || !(lit1->isInt())) {
+  if (!lit1 || (!lit1->isInt() && !lit1->isFP())) {
     havoc(lhs, valueToStr(i), m_bb, m_params.include_useless_havoc);
     return;
   }
 
   crab_lit_ref_t lit2 = m_lfac.getLit(v2);
-  if (!lit2 || !(lit2->isInt())) {
+  if (!lit2 || (!lit2->isInt() && !lit2->isFP())) {
     havoc(lhs, valueToStr(i), m_bb, m_params.include_useless_havoc);
     return;
   }
@@ -1462,9 +1513,21 @@ void CrabIntraBlockBuilder::doArithmetic(crab_lit_ref_t lit,
     case BinaryOperator::URem:
     case BinaryOperator::Shl:
     case BinaryOperator::AShr:
-    case BinaryOperator::LShr: {
+    case BinaryOperator::LShr:
+    {
       var_t t1 = m_lfac.mkIntVar(i.getType()->getIntegerBitWidth());
       var_t t2 = m_lfac.mkIntVar(i.getType()->getIntegerBitWidth());
+      m_bb.assign(t1, n1);
+      m_bb.assign(t2, n2);
+      doBinOp(i.getOpcode(), lhs, t1, t2);
+    } break;
+    case BinaryOperator::FAdd: /* Floating-point instructions */
+    case BinaryOperator::FSub:
+    case BinaryOperator::FMul:
+    case BinaryOperator::FDiv:
+    {
+      var_t t1 = m_lfac.mkFPVar(64); // todo: JR hardcoded to 64. Fix me!
+      var_t t2 = m_lfac.mkFPVar(64); // todo: JR hardcoded to 64. Fix me!
       m_bb.assign(t1, n1);
       m_bb.assign(t2, n2);
       doBinOp(i.getOpcode(), lhs, t1, t2);
@@ -1497,6 +1560,20 @@ void CrabIntraBlockBuilder::doArithmetic(crab_lit_ref_t lit,
       doBinOp(i.getOpcode(), lhs, op1, op2);
     }
     break;
+  case BinaryOperator::FAdd: /* Floating-point instructions */
+  case BinaryOperator::FSub:
+  case BinaryOperator::FMul:
+  case BinaryOperator::FDiv:
+    if (op1.is_constant()) {
+      // Crab cfg does not support arithmetic operations between a
+      // constant and variable.
+      var_t t = m_lfac.mkFPVar(64); // todo: JR hardcoded vallue. Fix me!
+      m_bb.assign(t, op1.constant());
+      doBinOp(i.getOpcode(), lhs, t, op2);
+    } else {
+      doBinOp(i.getOpcode(), lhs, op1, op2);
+    }
+      break;
   default:
     // this should not happen
     CLAM_ERROR("unexpected LLVM binary instruction");
@@ -1901,10 +1978,12 @@ void CrabIntraBlockBuilder::visitCmpInst(CmpInst &I) {
     return;
   }
 
-  // make sure we only translate if both operands are integers or booleans
+  // make sure we only translate if both operands are integers or booleans (or FP types)
   if (!v0.getType()->isIntegerTy() || !v1.getType()->isIntegerTy()) {
-    havoc(lit->getVar(), valueToStr(I), m_bb, m_params.include_useless_havoc);
-    return;
+    if (!v0.getType()->isFloatingPointTy() || !v1.getType()->isFloatingPointTy()) {
+      havoc(lit->getVar(), valueToStr(I), m_bb, m_params.include_useless_havoc);
+      return;
+    }
   }
 
   if (isBool(v0) && isBool(v1)) {
@@ -1917,8 +1996,20 @@ void CrabIntraBlockBuilder::visitCmpInst(CmpInst &I) {
     } else {
       CLAM_WARNING("translation skipped " << I << " at line " << __LINE__);
     }
-  } else {
+  } else if (isInteger(v0) && isInteger(v1)) {
     assert(isInteger(v0) && isInteger(v1));
+    if (AllUsesAreBrOrIntSelectCondInst(I, m_params,
+					[](SelectInst *I){
+					  return !AnyUseIsVerifierCall(*I);
+					})) {
+      // already lowered elsewhere
+    } else if (m_vericall_opt.skipTranslation(I)) {
+      // already lowered elsewhere
+    } else {
+      cmpInstToCrabBool(I, m_lfac, m_bb, m_params.lower_unsigned_icmp);
+    }
+  } else {
+    assert(isFloatingPoint(v0) && isFloatingPoint(v1));
     if (AllUsesAreBrOrIntSelectCondInst(I, m_params,
 					[](SelectInst *I){
 					  return !AnyUseIsVerifierCall(*I);
@@ -1953,6 +2044,10 @@ void CrabIntraBlockBuilder::visitBinaryOperator(BinaryOperator &I) {
   case BinaryOperator::Shl:
   case BinaryOperator::AShr:
   case BinaryOperator::LShr:
+  case BinaryOperator::FAdd: /* Floating-point instructions */
+  case BinaryOperator::FSub:
+  case BinaryOperator::FMul:
+  case BinaryOperator::FDiv:
     doArithmetic(lit, I);
     break;
   case BinaryOperator::And:
@@ -2250,13 +2345,10 @@ void CrabIntraBlockBuilder::visitSelectInst(SelectInst &I) {
     } else {
       m_bb.bool_select(lhs->getVar(), c->getVar(), op1->getVar(), op2->getVar());
     }
-  } else if (isInteger(I)) {
+  } else if (isInteger(I) || isFloatingPoint(I)) {
 
     // --- All operands except the condition are INTEGERS
-    if (!op1->isInt()) {
-      CLAM_ERROR("Expected integer select operands");
-    }
-    if (!op2->isInt()) {
+    if (!(op1->isInt() && op2->isInt()) && !(op1->isFP() && op2->isFP())) {
       CLAM_ERROR("Expected integer select operands");
     }
 
@@ -2281,14 +2373,14 @@ void CrabIntraBlockBuilder::visitSelectInst(SelectInst &I) {
     if (CmpInst *CI = dyn_cast<CmpInst>(&condV)) {
       if (m_params.lower_unsigned_icmp && CI->isUnsigned()) {
         if (auto var_opt = unsignedCmpInstToCrabInt(*CI, m_lfac, m_bb)) {
-	  // select only take integer variables and *var_opt is a
-	  // boolean variable.
-	  var_t bvar = *var_opt;
-	  // A bitwidth of 8 is enough and it cannot create type
-	  // inconsistencies since ivar is only used in the condition
-	  // of select.
-	  var_t ivar = m_lfac.mkIntVar(8); 
-	  m_bb.zext(bvar, ivar);
+          // select only take integer variables and *var_opt is a
+          // boolean variable.
+          var_t bvar = *var_opt;
+          // A bitwidth of 8 is enough and it cannot create type
+          // inconsistencies since ivar is only used in the condition
+          // of select.
+          var_t ivar = m_lfac.mkIntVar(8);
+          m_bb.zext(bvar, ivar);
           m_bb.select(lhs->getVar(), lin_cst_t(ivar >= 1), e1, e2);
           return;
         }
@@ -4432,14 +4524,19 @@ void CfgBuilderImpl::addFunctionDeclaration() {
        var_t inputPrime = m_lfac.mkIntVar(bitwidth);
        bb.assign(inputVar, inputPrime);
        inputs.push_back(inputPrime);
+     }else if (inputVar.get_type().is_fp()) {
+       unsigned bitwidth = inputVar.get_type().get_fp_bitwidth();
+       var_t inputPrime = m_lfac.mkFPVar(bitwidth);
+       bb.assign(inputVar, ikos::linear_expression<number_t, varname_t>(number_t(1.0, ikos::FP_Number), inputPrime));
+       inputs.push_back(inputPrime);
      } else if (inputVar.get_type().is_reference()) {
        Region inputRgn = getRegion(m_mem, m_func_regions, m_params, m_func, inputVal);
        if (!getSingletonValue(inputRgn, m_params.lower_singleton_aliases)) {
-	 var_t inputPrime = m_lfac.mkRefVar();
-	 // Revisit: we do not call insertCrabIRWithEmitter	 
-	 bb.gep_ref(inputVar, m_lfac.mkRegionVar(inputRgn),
-		    inputPrime, m_lfac.mkRegionVar(inputRgn));
-	 inputs.push_back(inputPrime);
+         var_t inputPrime = m_lfac.mkRefVar();
+         // Revisit: we do not call insertCrabIRWithEmitter
+         bb.gep_ref(inputVar, m_lfac.mkRegionVar(inputRgn),
+              inputPrime, m_lfac.mkRegionVar(inputRgn));
+         inputs.push_back(inputPrime);
        }
      } else if (inputVar.get_type().is_array()) {
        CLAM_ERROR("translateScalarInputVar should not be called on array variable");
@@ -4549,13 +4646,13 @@ void CfgBuilderImpl::addFunctionDeclaration() {
       if (it != m_globals.end()) {
         for (auto gv : it->second) {
 
-	  if (m_params.lower_singleton_aliases) {
-	    Region gvRgn = getRegion(m_mem, m_func_regions, m_params, m_func, *gv);
-	    if (getSingletonValue(gvRgn, m_params.lower_singleton_aliases)) {
-	      continue;
-	    }
-	  }
-	  translateInputValueAsScalar(*gv, *tmp_bb2);
+          if (m_params.lower_singleton_aliases) {
+            Region gvRgn = getRegion(m_mem, m_func_regions, m_params, m_func, *gv);
+            if (getSingletonValue(gvRgn, m_params.lower_singleton_aliases)) {
+              continue;
+            }
+          }
+          translateInputValueAsScalar(*gv, *tmp_bb2);
         }
       }
     }
@@ -4951,9 +5048,9 @@ CfgBuilder& CrabBuilderManagerImpl::mkCfgBuilder(const Function &f) {
     }
     for (auto &F : M) {
       if (!F.empty()) {
-	// don't use make_unique because the constructor of CfgBuilder
-	// is private
-	std::unique_ptr<CfgBuilder> builder(new CfgBuilder(F, *this));
+        // don't use make_unique because the constructor of CfgBuilder
+        // is private
+        std::unique_ptr<CfgBuilder> builder(new CfgBuilder(F, *this));
         builder->addFunctionDeclaration();
         m_cfg_builder_map.insert(std::make_pair(&F, std::move(builder)));
       }

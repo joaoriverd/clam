@@ -20,6 +20,7 @@ public:
   enum lit_class_t {
     CRAB_LITERAL_BOOL,
     CRAB_LITERAL_INT,
+    CRAB_LITERAL_FP,
     CRAB_LITERAL_REF,
   };
 
@@ -30,6 +31,8 @@ public:
   bool isBool() const { return m_lit_class == CRAB_LITERAL_BOOL; }
 
   bool isInt() const { return m_lit_class == CRAB_LITERAL_INT; }
+
+  bool isFP() const { return m_lit_class == CRAB_LITERAL_FP; }
 
   bool isRef() const { return m_lit_class == CRAB_LITERAL_REF; }
 
@@ -194,6 +197,67 @@ public:
   }
 };
 
+class crabFPLit : public crabLit {
+  friend class crabLitFactoryImpl;
+
+  number_t m_num = number_t(ikos::FP_Number); // only considered if !m_var.hasValue()
+  llvm::Optional<var_t> m_var;
+  unsigned m_bitwidth;
+
+  // If z_number != number_t we assume that number_t has a
+  // constructor for z_number.
+  explicit crabFPLit(ikos::z_number n, unsigned bitwidth)
+      : crabLit(CRAB_LITERAL_FP), m_num(n), m_bitwidth(bitwidth) {}
+
+  explicit crabFPLit(var_t v)
+      : crabLit(CRAB_LITERAL_FP), m_var(v),
+        m_bitwidth(v.get_type().get_fp_bitwidth()) {}
+
+public:
+  bool isVar() const override { return m_var.hasValue(); }
+
+  var_t getVar() const override {
+    return m_var.getValue();
+  }
+
+//  fp_var_t getFPVar() const {
+//    assert(isVar());
+//    return m_var.getValue();
+//  }
+
+  bool isFP() const { return !isVar(); }
+
+  var_or_cst_t getTypedConst() const {
+    assert(isFP());
+    return var_or_cst_t(getFP(),
+                        crab::variable_type(crab::FP_TYPE, getBitwidth()));
+  }
+
+  unsigned getBitwidth() const { return m_bitwidth; }
+
+  number_t getFP() const {
+    assert(isFP());
+    return m_num;
+  }
+
+  lin_exp_t getExp() const {
+    if (isFP())
+      return lin_exp_t(getFP()); // todo: JR is this correct?
+    else {
+      assert(isVar());
+      return lin_exp_t(number_t(1.0, ikos::FP_Number), getVar());
+    }
+  }
+
+  void write(crab::crab_os &out) const override {
+    if (isVar()) {
+      out << getVar();
+    } else {
+      out << getFP();
+    }
+  }
+};
+
 typedef std::shared_ptr<crabLit> crab_lit_ref_t;
 
 class crabLitFactoryImpl;
@@ -222,6 +286,7 @@ public:
    ** Each call returns a new fresh variable
    **/
   var_t mkIntVar(unsigned bitwidth);
+  var_t mkFPVar(unsigned bitwidth);
   var_t mkBoolVar();
   var_t mkRefVar();
   llvm::Optional<var_t> mkVar(const llvm::Value &v);

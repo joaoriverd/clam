@@ -27,6 +27,9 @@ public:
   // Create a fresh integer variable of bitwidth bits
   var_t mkIntVar(unsigned bitwidth);
 
+  // Create a fresh floating-point variable of bitwidth bits
+  var_t mkFPVar(unsigned bitwidth);
+
   // Create a fresh boolean variable
   var_t mkBoolVar();
 
@@ -35,6 +38,9 @@ public:
 
   // Create a fresh variable from a Value
   llvm::Optional<var_t> mkVar(const llvm::Value &v);
+
+  // Create a fresh floating-point variable from a Value
+  llvm::Optional<var_t> mkFPVar(const llvm::Value &v);
 
   // Inverse of mkVar. Return null if no Value found.
   const Value* getLLVMVar(const var_t &v) const;
@@ -63,9 +69,15 @@ public:
 
   var_or_cst_t getTypedConst(const crab_lit_ref_t ref) const;
 
+  var_or_cst_t getFPTypedConst(const crab_lit_ref_t ref) const;
+
   number_t getIntCst(const crab_lit_ref_t ref) const;
 
+  number_t getFPCst(const crab_lit_ref_t ref) const;
+
   lin_exp_t getExp(const crab_lit_ref_t ref) const;
+
+  lin_exp_t getFPExp(const crab_lit_ref_t ref) const;
 
 private:
   using lit_cache_t = std::unordered_map<const llvm::Value *, crab_lit_ref_t>;
@@ -91,6 +103,7 @@ private:
 
   llvm::Optional<crabBoolLit> getBoolLit(const llvm::Value &v);
   llvm::Optional<crabIntLit> getIntLit(const llvm::Value &v, bool IntCstAsSigned);
+  llvm::Optional<crabFPLit> getFPLit(const llvm::Value &v);
   llvm::Optional<crabRefLit> getRefLit(const llvm::Value &v);
 
   crab::variable_type regionTypeToCrabType(RegionInfo rgnInfo);
@@ -122,6 +135,14 @@ crab_lit_ref_t crabLitFactoryImpl::getLit(const Value &v, bool IntCstAsSigned) {
     if (lit.hasValue()) {
       crab_lit_ref_t ref = std::static_pointer_cast<crabLit>(
           std::make_shared<crabIntLit>(lit.getValue()));
+      m_lit_cache.insert({&v, ref});
+      return ref;
+    }
+  } else if (isFloatingPoint(&t)) {
+    Optional<crabFPLit> lit = getFPLit(v);
+    if (lit.hasValue()) {
+      crab_lit_ref_t ref = std::static_pointer_cast<crabLit>(
+          std::make_shared<crabFPLit>(lit.getValue()));
       m_lit_cache.insert({&v, ref});
       return ref;
     }
@@ -246,6 +267,10 @@ var_t crabLitFactoryImpl::mkIntVar(unsigned bitwidth) {
   return var_t(m_vfac.get(), crab::variable_type(INT_TYPE, bitwidth));
 }
 
+var_t crabLitFactoryImpl::mkFPVar(unsigned bitwidth) {
+  return var_t(m_vfac.get(), crab::variable_type(FP_TYPE, bitwidth));
+}
+
 var_t crabLitFactoryImpl::mkBoolVar() {
   return var_t(m_vfac.get(), crab::variable_type(BOOL_TYPE, 1));
 }
@@ -339,6 +364,13 @@ var_or_cst_t crabLitFactoryImpl::getTypedConst(const crab_lit_ref_t ref) const {
     } else {
       CLAM_ERROR("Called getTypedConst on a non-constant literal");
     }
+  } else if (ref->isFP()) {
+    auto i = std::static_pointer_cast<const crabFPLit>(ref);
+    if (i->isFP()) {
+      return i->getTypedConst();
+    } else {
+      CLAM_ERROR("Called getTypedConst on a non-constant literal");
+    }
   } else if (ref->isRef()) {
     auto r = std::static_pointer_cast<const crabRefLit>(ref);
     if (r->isNull()) {
@@ -352,17 +384,39 @@ var_or_cst_t crabLitFactoryImpl::getTypedConst(const crab_lit_ref_t ref) const {
 }
 
 lin_exp_t crabLitFactoryImpl::getExp(const crab_lit_ref_t ref) const {
-  if (!ref || !ref->isInt())
-    CLAM_ERROR("Literal is not an integer");
-  auto lit = std::static_pointer_cast<const crabIntLit>(ref);
-  return lit->getExp();
+  if (!ref || (!ref->isInt() && !ref->isFP()))
+    CLAM_ERROR("Literal is not an integer or a floating-point");
+
+  if (ref->isInt()) {
+    auto lit = std::static_pointer_cast<const crabIntLit>(ref);
+    return lit->getExp();
+  }
+
+  if (ref->isFP()) {
+    auto lit = std::static_pointer_cast<const crabFPLit>(ref);
+    return lit->getExp();
+  }
 }
+
+//lin_exp_t crabLitFactoryImpl::getFPExp(const crab_lit_ref_t ref) const {
+//  if (!ref || !ref->isFP())
+//    CLAM_ERROR("Literal is not an floating-point");
+//  auto lit = std::static_pointer_cast<const crabFPLit>(ref);
+//  return lit->getExp();
+//}
 
 number_t crabLitFactoryImpl::getIntCst(const crab_lit_ref_t ref) const {
   if (!ref || !ref->isInt())
     CLAM_ERROR("Literal is not an integer");
   auto lit = std::static_pointer_cast<const crabIntLit>(ref);
   return lit->getInt();
+}
+
+number_t crabLitFactoryImpl::getFPCst(const crab_lit_ref_t ref) const {
+  if (!ref || !ref->isFP())
+    CLAM_ERROR("Literal is not a floating-point");
+  auto lit = std::static_pointer_cast<const crabFPLit>(ref);
+  return lit->getFP();
 }
 
 Optional<crabBoolLit> crabLitFactoryImpl::getBoolLit(const Value &v) {
@@ -430,6 +484,28 @@ Optional<crabIntLit> crabLitFactoryImpl::getIntLit(const Value &v, bool IntCstAs
   return None;
 }
 
+Optional<crabFPLit> crabLitFactoryImpl::getFPLit(const Value &v) {
+  if (isFloatingPoint(v)) {
+    if (const ConstantFP *c = dyn_cast<const ConstantFP>(&v)) {
+      // -- constant floating-point
+      unsigned bitwidth = 64; // todo: JR hardcoded to double. Fix me!
+      ikos::z_number n = getFPConstant(c, m_params);
+      return crabFPLit(n, bitwidth);
+    } else if (!isa<ConstantExpr>(v)) {
+      // -- floating-point variable
+      unsigned bitwidth = 64; // todo: JR hardcoded to double. Fix me!
+      if (isa<UndefValue>(v)) {
+        // Create a fresh variable: this treats an undef value as a
+        // nondeterministic value.
+        return crabFPLit(var_t(m_vfac.get(), FP_TYPE, bitwidth));
+      } else {
+        return crabFPLit(var_t(m_vfac[&v], FP_TYPE, bitwidth));
+      }
+    }
+  }
+  return None;
+}
+
 crabLitFactory::crabLitFactory(variable_factory_t &vfac,
                                const CrabBuilderParams &params)
     : m_impl(new crabLitFactoryImpl(vfac, params)) {}
@@ -452,6 +528,10 @@ crab_lit_ref_t crabLitFactory::getLit(const Value &v, bool IntCstAsSigned) {
 
 var_t crabLitFactory::mkIntVar(unsigned bitwidth) {
   return m_impl->mkIntVar(bitwidth);
+}
+
+var_t crabLitFactory::mkFPVar(unsigned bitwidth) {
+  return m_impl->mkFPVar(bitwidth);
 }
 
 var_t crabLitFactory::mkBoolVar() { return m_impl->mkBoolVar(); }

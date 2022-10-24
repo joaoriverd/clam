@@ -41,6 +41,18 @@ bool isInteger(const Type *t) { return (t->isIntegerTy() && !isBool(t)); }
 
 bool isInteger(const Value &v) { return isInteger(v.getType()); }
 
+bool isDouble(const Type *t) { return t->isDoubleTy(); }
+
+bool isDouble(const Value &v) { return isDouble(v.getType()); }
+
+bool isFloat(const Type *t) { return t->isFloatTy(); }
+
+bool isFloat(const Value &v) { return isFloat(v.getType()); }
+
+bool isFloatingPoint(const Type *t) { return t->isFloatingPointTy(); }
+
+bool isFloatingPoint(const Value &v) { return isFloatingPoint(v.getType()); }
+
 bool isReference(const Type *t, const CrabBuilderParams &params) {
   return (t->isPointerTy() && params.trackMemory());
 }
@@ -76,6 +88,10 @@ z_number toZNumber(const APInt &v, const CrabBuilderParams &params,
 #endif
 }
 
+z_number toFPNumber(const APFloat &v, const CrabBuilderParams &params) {
+    return z_number(v.convertToDouble(), FP_Number);
+}
+
 z_number getIntConstant(const ConstantInt *CI, const CrabBuilderParams &params,
 			bool interpretAsSigned, bool &isTooBig) {
                         
@@ -87,8 +103,12 @@ z_number getIntConstant(const ConstantInt *CI, const CrabBuilderParams &params,
   }
 }
 
+z_number getFPConstant(const ConstantFP *CI, const CrabBuilderParams &params) {
+    return toFPNumber(CI->getValueAPF(), params);
+}
+
 bool isTrackedType(const Type &ty, const CrabBuilderParams &params) {
-  return isReference(&ty, params) || ty.isIntegerTy();
+  return isReference(&ty, params) || ty.isIntegerTy() || ty.isDoubleTy() || ty.isFloatTy();
 }
 
 bool isTracked(const Value &v, const CrabBuilderParams &params) {
@@ -144,10 +164,14 @@ void normalizeCmpInst(CmpInst &I) {
   switch (I.getPredicate()) {
   case ICmpInst::ICMP_UGT:
   case ICmpInst::ICMP_SGT:
+  case FCmpInst::FCMP_OGT:
+  case FCmpInst::FCMP_UGT:
     I.swapOperands();
     break;
   case ICmpInst::ICMP_UGE:
   case ICmpInst::ICMP_SGE:
+  case FCmpInst::FCMP_OGE:
+  case FCmpInst::FCMP_UGE:
     I.swapOperands();
     break;
   default:;

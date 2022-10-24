@@ -11,7 +11,9 @@ class Instruction;
 class CallInst;
 class SelectInst;
 class APInt;
+class APFP;
 class ConstantInt;
+class ConstantFP;
 class DataLayout;
 class CastInt;
 class CmpInst;
@@ -31,6 +33,18 @@ bool isInteger(const llvm::Type *t);
 
 bool isInteger(const llvm::Value &v);
 
+bool isDouble(const llvm::Type *t);
+
+bool isDouble(const llvm::Value &v);
+
+bool isFloat(const llvm::Type *t);
+
+bool isFloat(const llvm::Value &v);
+
+bool isFloatingPoint(const llvm::Type *t);
+
+bool isFloatingPoint(const llvm::Value &v);
+
 bool isReference(const llvm::Type *t, const CrabBuilderParams &params);
 
 bool isReference(const llvm::Value &v, const CrabBuilderParams &params);
@@ -44,6 +58,10 @@ ikos::z_number getIntConstant(const llvm::ConstantInt *CI,
                               const CrabBuilderParams &params,
 			      bool interpretAsSigned,
 			      bool &isTooBig);
+
+// The return value should be z_number and not number_t
+ikos::z_number getFPConstant(const llvm::ConstantFP *CI,
+                              const CrabBuilderParams &params);
 
 bool isTrackedType(const llvm::Type &ty, const CrabBuilderParams &params);
 

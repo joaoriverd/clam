@@ -1060,12 +1060,13 @@ def main(argv):
             #stat('Progress', 'Clang')
         in_name = bc_out
 
-        pp_out = defPPName(in_name, workdir)
-        if pp_out != in_name:
-            with stats.timer('ClamPP'):
-                crabpp(in_name, pp_out, args=args, cpu=args.cpu, mem=args.mem)
-            #stat('Progress', 'Clam preprocessor')
-        in_name = pp_out
+        # JR: Skipping clang-pp since it was removing code without main for some reason
+        # pp_out = defPPName(in_name, workdir)
+        # if pp_out != in_name:
+        #     with stats.timer('ClamPP'):
+        #         crabpp(in_name, pp_out, args=args, cpu=args.cpu, mem=args.mem)
+        #     #stat('Progress', 'Clam preprocessor')
+        # in_name = pp_out
 
     if args.L > 0:
         o_out = defOptName(in_name, workdir)

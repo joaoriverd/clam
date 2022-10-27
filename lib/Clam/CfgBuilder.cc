@@ -768,12 +768,14 @@ struct CrabInterBlockBuilder : public InstVisitor<CrabInterBlockBuilder> {
           m_bb.bool_assign(lhs, it->second);
         } else if (phi.getType()->isIntegerTy()) {
           m_bb.assign(lhs, it->second);
+        }  else if (phi.getType()->isFloatingPointTy()) {
+          m_bb.assign(lhs, it->second);
         } else if (isReference(phi, m_lfac.getCfgBuilderParams())) {
           Region rgn_phi = getRegion(m_mem, m_func_regions, m_params, phi, phi);
-	  insertCrabIRWithEmitter::
-	    gep_ref(*(const_cast<PHINode*>(&phi)), m_propertyEmitters, m_bb,
-		    lhs, m_lfac.mkRegionVar(rgn_phi), it->second,
-		    m_lfac.mkRegionVar(rgn_phi));
+          insertCrabIRWithEmitter::
+            gep_ref(*(const_cast<PHINode*>(&phi)), m_propertyEmitters, m_bb,
+              lhs, m_lfac.mkRegionVar(rgn_phi), it->second,
+              m_lfac.mkRegionVar(rgn_phi));
         }
       } else {
         if (crab_lit_ref_t phi_val_lit = m_lfac.getLit(v)) {
@@ -786,6 +788,8 @@ struct CrabInterBlockBuilder : public InstVisitor<CrabInterBlockBuilder> {
                                         : lin_cst_t::get_false());
             }
           } else if (phi_val_lit->isInt()) {
+            m_bb.assign(lhs, m_lfac.getExp(phi_val_lit));
+          } else if (phi_val_lit->isFP()) {
             m_bb.assign(lhs, m_lfac.getExp(phi_val_lit));
           } else if (isReference(v, m_params)) {
             assert(phi_val_lit->isRef());
@@ -4557,6 +4561,8 @@ void CfgBuilderImpl::addFunctionDeclaration() {
        var_t inputPrime = m_lfac.mkIntVar(bitwidth);
        bb.assign(inputVar, inputPrime);
        inputs.push_back(inputPrime);
+     } else if (inputVar.get_type().is_fp()) {
+       assert(0);
      } else {
        CLAM_ERROR("translateInputRegionAsScalar supported only for boolean or integer scalars");
      } 
@@ -5190,6 +5196,8 @@ void CrabIntraBlockBuilder::doCallSite(CallInst &I) {
         unsigned bitwidth = RT->getIntegerBitWidth();
         var_t fresh_ret = m_lfac.mkIntVar(bitwidth);
         outputs.push_back(fresh_ret);
+      } else if (isFloatingPoint(RT)) {
+        assert(1);
       } else if (isReference(RT, m_params)) {
         var_t fresh_ret = m_lfac.mkRefVar();
         outputs.push_back(fresh_ret);

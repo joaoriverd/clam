@@ -283,14 +283,14 @@ static void cmpInstToCrabBool(CmpInst &I, crabLitFactory &lfac,
      I.getPredicate() != CmpInst::ICMP_ULE);
     
   crab_lit_ref_t ref0 = lfac.getLit(v0, interpretAsSigned);
-  if (!ref0 || !(ref0->isInt())) {
+  if (!ref0 || !(ref0->isInt() || ref0->isFP())) {
     havoc(lhs, valueToStr(I), bb,
           lfac.getCfgBuilderParams().include_useless_havoc);
     return;
   }
 
   crab_lit_ref_t ref1 = lfac.getLit(v1, interpretAsSigned);
-  if (!ref1 || !(ref1->isInt())) {
+  if (!ref1 || !(ref1->isInt() || ref1->isFP())) {
     havoc(lhs, valueToStr(I), bb,
           lfac.getCfgBuilderParams().include_useless_havoc);
     return;
@@ -301,30 +301,46 @@ static void cmpInstToCrabBool(CmpInst &I, crabLitFactory &lfac,
 
   assert(isBool(I));
   switch (I.getPredicate()) {
-  case CmpInst::ICMP_EQ: {
+  case CmpInst::ICMP_EQ:
+  case CmpInst::FCMP_OEQ:
+  case CmpInst::FCMP_UEQ:
+  {
     lin_cst_t cst(op0 == op1);
     bb.bool_assign(lhs, cst);
     break;
   }
-  case CmpInst::ICMP_NE: {
+  case CmpInst::ICMP_NE:
+  case CmpInst::FCMP_ONE:
+  case CmpInst::FCMP_UNE:
+  {
     lin_cst_t cst(op0 != op1);
     bb.bool_assign(lhs, cst);
     break;
   }
-  case CmpInst::ICMP_SLT: {
+  case CmpInst::ICMP_SLT:
+  {
     lin_cst_t cst(op0 <= op1 - number_t(1));
     bb.bool_assign(lhs, cst);
     break;
   }
-  case CmpInst::ICMP_SLE:{
+  case CmpInst::FCMP_ULT:
+  case CmpInst::FCMP_OLT:
+  {
+    lin_cst_t cst(op0 < op1);
+    bb.bool_assign(lhs, cst);
+    break;
+  }
+  case CmpInst::ICMP_SLE:
+  case CmpInst::FCMP_ULE:
+  case CmpInst::FCMP_OLE:
+  {
     lin_cst_t cst(op0 <= op1);
     bb.bool_assign(lhs, cst);
     break;
   }
   case CmpInst::ICMP_ULT: {
     if (removeUnsignedCmp) {
-      unsignedCmpIntoSignOnes(lhs, op0, op1, lfac, bb,
-			      false /*isNegated*/, false /* isCmpULE*/);
+      unsignedCmpIntoSignOnes(lhs, op0, op1, lfac, bb, false /*isNegated*/, false /* isCmpULE*/);
     } else {
       lin_cst_t cst(op0 <= op1 - number_t(1));
       cst.set_unsigned();
@@ -605,6 +621,10 @@ static var_t normalizeFuncParamOrRet(Value &v, basic_block_t &bb,
       if (v_lit->isInt()) {
         unsigned bitwidth = v.getType()->getIntegerBitWidth();
         var_t res = lfac.mkIntVar(bitwidth);
+        bb.assign(res, lfac.getExp(v_lit));
+        return res;
+      }if (v_lit->isFP()) {
+        var_t res = lfac.mkFPVar(64);
         bb.assign(res, lfac.getExp(v_lit));
         return res;
       } else if (v_lit->isBool()) {
@@ -1571,7 +1591,7 @@ void CrabIntraBlockBuilder::doArithmetic(crab_lit_ref_t lit,
     if (op1.is_constant()) {
       // Crab cfg does not support arithmetic operations between a
       // constant and variable.
-      var_t t = m_lfac.mkFPVar(64); // todo: JR hardcoded vallue. Fix me!
+      var_t t = m_lfac.mkFPVar(64); // todo: JR hardcoded value. Fix me!
       m_bb.assign(t, op1.constant());
       doBinOp(i.getOpcode(), lhs, t, op2);
     } else {
@@ -3346,15 +3366,15 @@ void CrabIntraBlockBuilder::visitCallInst(CallInst &I) {
     return;
   }
 
-  if (callee->isIntrinsic()) {
+  if (callee->isIntrinsic() && !isMathFunction(*callee)) {
     if (MemIntrinsic *MI = dyn_cast<MemIntrinsic>(&I)) {
       doMemIntrinsic(*MI);
     } else {
       if (DoesCallSiteReturn(I, m_params)/* &&
-					    ShouldCallSiteReturn(I, m_params)*/) {
+            ShouldCallSiteReturn(I, m_params)*/) {
         // -- havoc return value of the intrinsics
         crab_lit_ref_t lhs = m_lfac.getLit(I);
-	error_if_null(lhs, I);
+        error_if_null(lhs, I);
         assert(lhs->isVar());
         havoc(lhs->getVar(), valueToStr(I), m_bb, m_params.include_useless_havoc);
       }
@@ -3364,7 +3384,7 @@ void CrabIntraBlockBuilder::visitCallInst(CallInst &I) {
 
   bool is_external = callee->isDeclaration() || callee->isVarArg() ||
                      !m_params.interprocedural;
-  if (is_external && !isCrabIntrinsic(*callee)) {
+  if (is_external && !isCrabIntrinsic(*callee) && !isMathFunction(*callee)) {
     /**
      * If external or we don't perform inter-procedural reasoning then
      * we make sure that all modified regions and returned value of
@@ -4169,6 +4189,12 @@ basic_block_t *CfgBuilderImpl::execEdge(const BasicBlock &src,
                 bb.assume(cst_opt.getValue());
               }
             }
+          } else if (isFloatingPoint(*(CI->getOperand(0))) &&
+                     isFloatingPoint(*(CI->getOperand(1)))) {
+            auto cst_opt = cmpInstToCrabInt(*CI, m_lfac, isNegated);
+            if (cst_opt.hasValue()) {
+              bb.assume(cst_opt.getValue());
+            }
           } else if (isReference(*(CI->getOperand(0)), m_params) &&
                      isReference(*(CI->getOperand(1)), m_params)) {
             auto cst_opt = cmpInstToCrabRef(*CI, m_lfac, isNegated);
@@ -4178,11 +4204,10 @@ basic_block_t *CfgBuilderImpl::execEdge(const BasicBlock &src,
           }
           if (!lower_cond_as_bool) {
             // Here we check the same condition we checked in
-	    // visitCmpInt to decide whether we still need to
-	    // translate the CmpInst as a boolean CrabIR statement.
+            // visitCmpInt to decide whether we still need to
+            // translate the CmpInst as a boolean CrabIR statement.
             lower_cond_as_bool =
-	      !AllUsesAreBrOrIntSelectCondInst(*CI, m_params,
-					       [](SelectInst *I){
+            !AllUsesAreBrOrIntSelectCondInst(*CI, m_params, [](SelectInst *I) {
 						 return !AnyUseIsVerifierCall(*I);
 					       });
           }
@@ -4194,7 +4219,7 @@ basic_block_t *CfgBuilderImpl::execEdge(const BasicBlock &src,
 
         if (lower_cond_as_bool) {
           crab_lit_ref_t lhs = m_lfac.getLit(c);
-	  error_if_null(lhs, c);
+          error_if_null(lhs, c);
           assert(lhs->isVar() && lhs->isBool());
           if (isNegated) {
             bb.bool_not_assume(lhs->getVar());
@@ -5197,7 +5222,9 @@ void CrabIntraBlockBuilder::doCallSite(CallInst &I) {
         var_t fresh_ret = m_lfac.mkIntVar(bitwidth);
         outputs.push_back(fresh_ret);
       } else if (isFloatingPoint(RT)) {
-        assert(1);
+        unsigned bitwidth = 64; // todo: (JR) update this to get actual bitwidth
+        var_t fresh_ret = m_lfac.mkFPVar(bitwidth);
+        outputs.push_back(fresh_ret);
       } else if (isReference(RT, m_params)) {
         var_t fresh_ret = m_lfac.mkRefVar();
         outputs.push_back(fresh_ret);
@@ -5427,10 +5454,10 @@ void CrabIntraBlockBuilder::doCallSite(CallInst &I) {
     }
   }
   
-  // -- Finally, add the callsite or crab intrinsic
-  if (isCrabIntrinsic(*calleeF)) {    
-    assert(!isSpecialCrabIntrinsic(*calleeF));
-    std::string name = getCrabIntrinsicName(*calleeF);    
+  // -- Finally, add the callsite or crab intrinsic. JR: treat math functions as intrinsics for now.
+  if (isCrabIntrinsic(*calleeF) || isMathFunction(*calleeF)) {
+    assert(!isSpecialCrabIntrinsic(*calleeF) || isMathFunction(*calleeF));
+    std::string name = isMathFunction(*calleeF) ? (std::string) calleeF->getName() : getCrabIntrinsicName(*calleeF);
     std::vector<var_or_cst_t> new_inputs;
     std::copy(inputs.begin(), inputs.end(), std::back_inserter(new_inputs)); 
     m_bb.intrinsic(name, outputs, new_inputs, getDebugLoc(&I, m_dbg_id++));

@@ -14,6 +14,7 @@
 
 #include <cstdint>
 #include <algorithm>
+#include <set>
 
 namespace clam {
 
@@ -248,6 +249,20 @@ bool isCrabIntrinsic(const Function &F) {
   return (F.isDeclaration() &&
 	  (F.getName().startswith("__CRAB_intrinsic_") ||
 	   isSeaHornIntrinsic(F)));
+}
+
+static const std::set<std::string> math_functions {
+  "fabs", "fmax", "fmin", "exp", "exp2", "expm1", "log", "log2", "log10", "log1p",
+  "sqrt", "cbrt", "pow", "sin", "cos", "tan", "asin", "acos", "atan", "atan2",
+  "sinh", "cosh", "tanh", "asinh", "acosh", "atanh",
+  "llvm.fabs.f64", // Special names for some math functions
+  "__CRAB_get_range" // Special function for debugging. To remove later.
+};
+
+bool isMathFunction(const Function &F) {
+  std::string name =  F.getName();
+  bool isMathFun = (math_functions.find(name) != math_functions.end());
+  return (F.isDeclaration() && isMathFun);
 }
 
 std::string getCrabIntrinsicName(const Function &F) {

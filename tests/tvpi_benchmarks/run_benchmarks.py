@@ -5,11 +5,13 @@ import csv
 # Paths to benchmarks and name
 benchmarks = [
               # ["name", "rel_path/benchmark_file.c"],
-              ["artificial", "papers/artificial_benchmarks.c"],
-              ["fppoly", "papers/fppoly_benchmarks.c"],
-              ["fptylor", "papers/fptylor_benchmarks.c"],
-              ["raicp", "papers/raicp_benchmarks.c"],
-              ["rosa", "papers/rosa_benchmarks.c"],
+              # ["artificial", "papers/artificial_benchmarks.c"],
+              # ["fppoly", "papers/fppoly_benchmarks.c"],
+              # ["fptylor_paper", "papers/fptylor_benchmarks.c"],
+              # ["raicp", "papers/raicp_benchmarks.c"],
+              # ["rosa", "fpbench/rosa_benchmarks.c"],
+              # ["daisy", "fpbench/daisy_benchmarks.c"],
+              ["fptaylor", "fpbench/fptaylor_benchmarks.c"],
              ]
 
 clam_exec = "/home/joao/Documents/repo/static_analysis/clam/install/bin/clam.py"

@@ -1060,7 +1060,9 @@ def main(argv):
             #stat('Progress', 'Clang')
         in_name = bc_out
 
-        # JR: Skipping clang-pp since it was removing code without main for some reason
+        # todo: (JR) Skipping clang-pp since it was removing code without main for some reason.
+        #  Try to solve this later.
+
         # pp_out = defPPName(in_name, workdir)
         # if pp_out != in_name:
         #     with stats.timer('ClamPP'):

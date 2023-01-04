@@ -10,7 +10,7 @@ extern void __SEAHORN_error(int);
 
 #define M 150
 
-double FPPoly_example(double X, double Y, double D) {
+double rate_limiter(double X, double Y, double D) {
   /* Result:
    * TVPI: [-150, 150] // It can possibly be improved
    */

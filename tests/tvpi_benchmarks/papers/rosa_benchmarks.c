@@ -27,6 +27,21 @@ double doppler1(double u, double v, double T) {
   return res;
 }
 
+double doppler1_option2(double u, double v, double T) {
+  /* Preconditions */
+  __CRAB_assume(u >= -100.0);
+  __CRAB_assume(u <=  100.0);
+  __CRAB_assume(v >=  20.0);
+  __CRAB_assume(v <=  20000.0);
+  __CRAB_assume(T >= -30.0);
+  __CRAB_assume(T <=  50.0);
+
+  double t1 = 331.4 + (0.6 * T);
+  double res = (-v) / (t1 + 2.0*u + u*u/t1);
+  __CRAB_get_range(res);
+  return res;
+}
+
 double doppler2(double u, double v, double T) {
   /* Preconditions */
   __CRAB_assume(u >= -125.0);
@@ -66,7 +81,24 @@ double rigidBody1(double x1, double x2, double x3) {
   __CRAB_assume(x3 >= -15.0);
   __CRAB_assume(x3 <=  15.0);
 
-  double res = ((-(x1 * x2) - ((2.0 * x2) * x3)) - x1) - x3;
+  double res = -(x1 * x2) - (2.0 * x2 * x3) - x1 - x3;
+  __CRAB_get_range(res);
+  return res;
+}
+
+double rigidBody1_improved(double x1, double x2, double x3) {
+  /* Same result as rigidBody1 and Rosa, i.e. res = [-705, 705] */
+
+  /* Preconditions */
+  __CRAB_assume(x1 >= -15.0);
+  __CRAB_assume(x1 <=  15.0);
+  __CRAB_assume(x2 >= -15.0);
+  __CRAB_assume(x2 <=  15.0);
+  __CRAB_assume(x3 >= -15.0);
+  __CRAB_assume(x3 <=  15.0);
+
+  double x13 = -x1 - x3;
+  double res = (x13 - x3)*x2 + x13;
   __CRAB_get_range(res);
   return res;
 }
@@ -81,6 +113,40 @@ double rigidBody2(double x1, double x2, double x3) {
   __CRAB_assume(x3 <=  15.0);
 
   double res = ((((((2.0 * x1) * x2) * x3) + ((3.0 * x3) * x3)) - (((x2 * x1) * x2) * x3)) + ((3.0 * x3) * x3)) - x2;
+  __CRAB_get_range(res);
+  return res;
+}
+
+double rigidBody2_simplified(double x1, double x2, double x3) {
+  /* Preconditions */
+  __CRAB_assume(x1 >= -15.0);
+  __CRAB_assume(x1 <=  15.0);
+  __CRAB_assume(x2 >= -15.0);
+  __CRAB_assume(x2 <=  15.0);
+  __CRAB_assume(x3 >= -15.0);
+  __CRAB_assume(x3 <=  15.0);
+
+  double res = 2.0*x1*x2*x3 - x2*x1*x2*x3 + 6.0*x3*x3 - x2;
+  __CRAB_get_range(res);
+  return res;
+}
+
+double rigidBody2_improved(double x1, double x2, double x3, double x4) {
+  /* Preconditions */
+  __CRAB_assume(x1 >= -15.0);
+  __CRAB_assume(x1 <=  15.0);
+  __CRAB_assume(x2 >= -15.0);
+  __CRAB_assume(x2 <=  15.0);
+  __CRAB_assume(x3 >= -15.0);
+  __CRAB_assume(x3 <=  15.0);
+  __CRAB_assume(x4 >= -15.0);
+  __CRAB_assume(x4 <=  15.0);
+
+  double x3_sqr = x3*x3;
+  double x2_sqr = x2*x2;
+  double x123 = x1*x2*x3;
+
+  double res = (x2*2.0 - x2*x2)*(x1*x3) + x3*x3*6.0 - x2;
   __CRAB_get_range(res);
   return res;
 }
@@ -102,6 +168,24 @@ double jetEngine(double x1, double x2) {
   return res;
 }
 
+double jetEngine_improved(double x1, double x2) {
+  /* Preconditions */
+  __CRAB_assume(x1 >= -5.0);
+  __CRAB_assume(x1 <=  5.0);
+  __CRAB_assume(x2 >= -20.0);
+  __CRAB_assume(x2 <=  5.0);
+
+  double x1_sqr = x1*x1;
+  double t = 3.0*x1_sqr - x1 + 2.0*x2 ;
+  double t_42_ = 3.0*x1_sqr - x1 - 2.0*x2 ;
+  double d = x1_sqr + 1.0;
+  double s = t / d;
+  double s_42_ = t_42_ / d;
+  double res = 2.0*x1 + (2.0*x1*s*(s - 3.0) + x1_sqr*(4.0*s - 6.0))*d + x1_sqr*(3.0*s + x1) + 3.0*s_42_;
+  __CRAB_get_range(res);
+  return res;
+}
+
 double turbine1(double v, double w, double r) {
   /* Preconditions */
   __CRAB_assume(v >= -4.5);
@@ -111,7 +195,25 @@ double turbine1(double v, double w, double r) {
   __CRAB_assume(r >=  3.8);
   __CRAB_assume(r <=  7.8);
 
-  double res = ((3.0 + (2.0 / (r * r))) - (((0.125 * (3.0 - (2.0 * v))) * (((w * w) * r) * r)) / (1.0 - v))) - 4.5;
+  double r2 = r*r;
+  double res = ((3.0 + (2.0 / (r2))) - (((0.125 * (3.0 - (2.0 * v))) * ((w * w) * r2)) / (1.0 - v))) - 4.5;
+  __CRAB_get_range(res);
+  return res;
+}
+
+// todo: Improve division (using inverse)
+double turbine1_simplified(double v, double w, double r) {
+  /* Preconditions */
+  __CRAB_assume(v >= -4.5);
+  __CRAB_assume(v <= -0.3);
+  __CRAB_assume(w >=  0.4);
+  __CRAB_assume(w <=  0.9);
+  __CRAB_assume(r >=  3.8);
+  __CRAB_assume(r <=  7.8);
+
+  double r2 = r*r;
+  double w2 = w*w;
+  double res = 2.0/r2 - w2*r2*((0.375 - 0.25*v)/(1.0 - v)) - 1.5;
   __CRAB_get_range(res);
   return res;
 }
@@ -131,6 +233,21 @@ double turbine2(double v, double w, double r) {
   return res;
 }
 
+double turbine2_simplified(double v, double w, double r) {
+  /* Preconditions */
+  __CRAB_assume(v >= -4.5);
+  __CRAB_assume(v <= -0.3);
+  __CRAB_assume(w >=  0.4);
+  __CRAB_assume(w <=  0.9);
+  __CRAB_assume(r >=  3.8);
+  __CRAB_assume(r <=  7.8);
+
+
+  double res = 6.0*v - 0.5*v*w*w*r*r/(1.0 - v) - 2.5;
+  __CRAB_get_range(res);
+  return res;
+}
+
 double turbine3(double v, double w, double r) {
   /* Preconditions */
   __CRAB_assume(v >= -4.5);
@@ -142,6 +259,21 @@ double turbine3(double v, double w, double r) {
 
 
   double res = ((3.0 - (2.0 / (r * r))) - (((0.125 * (1.0 + (2.0 * v))) * (((w * w) * r) * r)) / (1.0 - v))) - 0.5;
+  __CRAB_get_range(res);
+  return res;
+}
+
+double turbine3_simplified(double v, double w, double r) {
+  /* Preconditions */
+  __CRAB_assume(v >= -4.5);
+  __CRAB_assume(v <= -0.3);
+  __CRAB_assume(w >=  0.4);
+  __CRAB_assume(w <=  0.9);
+  __CRAB_assume(r >=  3.8);
+  __CRAB_assume(r <=  7.8);
+
+
+  double res = 3.0 - 2.0/(r*r) - (0.125 + 0.25*v)*(w*w)*(r*r)/(1.0 - v) - 0.5;
   __CRAB_get_range(res);
   return res;
 }
@@ -170,6 +302,26 @@ double predatorPrey(double x) {
   return res;
 }
 
+double predatorPrey_simplified(double x) {
+  /* Preconditions */
+  __CRAB_assume(x >= 0.1);
+  __CRAB_assume(x <= 0.3);
+
+  double res = 4.0*(x*x) / (1.0 +  0.811622433*(x*x));
+  __CRAB_get_range(res);
+  return res;
+}
+
+double predatorPrey_improved(double x) {
+  /* Preconditions */
+  __CRAB_assume(x >= 0.1);
+  __CRAB_assume(x <= 0.3);
+
+  double res = 4.0 / (1.0/(x*x) + 0.811622433);
+  __CRAB_get_range(res);
+  return res;
+}
+
 double carbonGas(double v) {
   /* Preconditions */
   __CRAB_assume(v >= 0.1);
@@ -187,6 +339,26 @@ double carbonGas(double v) {
   return res;
 }
 
+double carbonGas_simplified(double v) {
+  /* Preconditions */
+  __CRAB_assume(v >= 0.1);
+  __CRAB_assume(v <= 0.5);
+
+  double res = (35000000.0 + (401000.0 / (v*v))) * (v - 4.27e-2) - 4.1419509-18;
+  __CRAB_get_range(res);
+  return res;
+}
+
+double carbonGas_improved(double v) {
+  /* Preconditions */
+  __CRAB_assume(v >= 0.1);
+  __CRAB_assume(v <= 0.5);
+
+  double res = 35000000.0*v + 401000.0/v - (4010.0*4.27)/(v*v) - (350000.0*4.27 + 4.1419509-18);
+  __CRAB_get_range(res);
+  return res;
+}
+
 double sine(double x) {
   /* Preconditions */
   __CRAB_assume(x >= -1.57079632679);
@@ -197,12 +369,72 @@ double sine(double x) {
   return res;
 }
 
+double sine_simplified(double x) {
+  /* Preconditions */
+  __CRAB_assume(x >= -1.57079632679);
+  __CRAB_assume(x <=  1.57079632679);
+
+  double res = x - x*x*x/6.0 + x*x*x*x*x/120.0 - x*x*x*x*x*x*x/5040.0;
+  __CRAB_get_range(res);
+  return res;
+}
+
+double sine_improved_associativity(double x) {
+  /* Preconditions */
+  __CRAB_assume(x >= -1.57079632679);
+  __CRAB_assume(x <=  1.57079632679);
+
+  double res = x * (1.0 - (x*x)/6.0 + (x*x)*(x*x)/120.0 - (x*x)*(x*x)*(x*x)/5040.0);
+  __CRAB_get_range(res);
+  return res;
+}
+
+double sine_improved_horner(double x) {
+  /* Preconditions */
+  __CRAB_assume(x >= -1.57079632679);
+  __CRAB_assume(x <=  1.57079632679);
+
+  double res = x * (1.0 - (x*x)*(1.0/6.0 + (x*x)*(1.0/120.0 - (x*x)/5040.0)));
+  __CRAB_get_range(res);
+  return res;
+}
+
 double sqroot(double x) {
   /* Preconditions */
   __CRAB_assume(x >= 0);
   __CRAB_assume(x <= 1);
 
-  double res = (((1.0 + (0.5 * x)) - ((0.125 * x) * x)) + (((0.0625 * x) * x) * x)) - ((((0.0390625 * x) * x) * x) * x);
+  double res = (((1.0 + (0.5 * x*x)) - (0.125 * x*x)) + ((0.0625 * x) * x*x)) - (0.0390625 * x*x * x*x);
+  __CRAB_get_range(res);
+  return res;
+}
+
+double sqroot_simplified(double x) {
+  /* Preconditions */
+  __CRAB_assume(x >= 0);
+  __CRAB_assume(x <= 1);
+
+  double res = 1.0 + 0.375*x*x + 0.0625*x*x*x - 0.0390625*x*x*x*x;
+  __CRAB_get_range(res);
+  return res;
+}
+
+double sqroot_improved_associativity(double x) {
+  /* Preconditions */
+  __CRAB_assume(x >= 0);
+  __CRAB_assume(x <= 1);
+
+  double res = 1.0 + 0.375*(x*x) + 0.0625*(x*x)*x - 0.0390625*(x*x)*(x*x);
+  __CRAB_get_range(res);
+  return res;
+}
+
+double sqroot_improved_horner(double x) {
+  /* Preconditions */
+  __CRAB_assume(x >= 0);
+  __CRAB_assume(x <= 1);
+
+  double res = 1.0 + (x*x)*(0.375 + x*(0.0625 - 0.0390625*x));
   __CRAB_get_range(res);
   return res;
 }
@@ -213,6 +445,26 @@ double sineOrder3(double x) {
   __CRAB_assume(x <=  2.0);
 
   double res = (0.954929658551372 * x) - (0.12900613773279798 * ((x * x) * x));
+  __CRAB_get_range(res);
+  return res;
+}
+
+double sineOrder3_simplified(double x) {
+  /* Preconditions */
+  __CRAB_assume(x >= -2.0);
+  __CRAB_assume(x <=  2.0);
+
+  double res = 0.954929658551372*x - 0.12900613773279798*x*x*x;
+  __CRAB_get_range(res);
+  return res;
+}
+
+double sineOrder3_improved_horner(double x) {
+  /* Preconditions */
+  __CRAB_assume(x >= -2.0);
+  __CRAB_assume(x <=  2.0);
+
+  double res = x*(0.954929658551372 - 0.12900613773279798*(x*x));
   __CRAB_get_range(res);
   return res;
 }
@@ -253,8 +505,8 @@ double smartRoot_simplified(double c) {
   double discr = 12.25 - 12.0 * c;
   __CRAB_assume(discr > 0.1);
   double tmp_1;
-  __CRAB_get_range(discr);
-  __CRAB_get_range(c);
+//  __CRAB_get_range(discr);
+//  __CRAB_get_range(c);
 //  if (3.0 * c < 2.25) {
   if (c < 0.75) {
     tmp_1 = (c * 2.0) / (-3.5 - sqrt(discr));
@@ -336,6 +588,7 @@ double triangle(double a, double b, double c) {
   return res;
 }
 
+#if 0
 double triangle1(double a, double b, double c) {
   /* Preconditions */
   __CRAB_assume(a >= 1.0);
@@ -360,7 +613,6 @@ double triangle1(double a, double b, double c) {
   return res;
 }
 
-#if 0
 double ex21(double a, double b, double c) {
   double s = ((a + b) + c) / 2.0;
   return sqrt((((s * (s - a)) * (s - b)) * (s - c)));
@@ -420,7 +672,7 @@ double ex31(double a, double b, double c) {
 double bspline3(double u) {
   __CRAB_assume(u >= 0);
   __CRAB_assume(u <= 1);
-  double res = -((u * u) * u) / 6.0;
+  double res = -u*u*u / 6.0;
   __CRAB_get_range(res);
   return res;
 }
@@ -549,7 +801,7 @@ double n_body_simulation_simplified(double x0, double y0, double z0, double vx0,
 double Pendulum(double t0, double w0, double N) {
   /* Notes:
    * Final result yields [-inf, inf]. This seems correct since every iteration will increase the range of t and w.
-   * The widening operator will make these variabels [-inf, inf]. */
+   * The widening operator will make these variables [-inf, inf]. */
   __CRAB_assume(t0 >= -2.0);
   __CRAB_assume(t0 <=  2.0);
   __CRAB_assume(w0 >= -5.0);

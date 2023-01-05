@@ -2,6 +2,11 @@
 #define TRUE 1
 #define FALSE 0
 
+extern void __CRAB_assert(int);
+extern void __CRAB_assume(int);
+extern void __CRAB_get_range(double);
+extern void __SEAHORN_error(int);
+
 double logexp(double x) {
   /* Preconditions */
   __CRAB_assume(x >= -8.0);

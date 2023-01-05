@@ -2,6 +2,11 @@
 #define TRUE 1
 #define FALSE 0
 
+extern void __CRAB_assert(int);
+extern void __CRAB_assume(int);
+extern void __CRAB_get_range(double);
+extern void __SEAHORN_error(int);
+
 double carthesianToPolar_radius(double x, double y) {
   /* Preconditions */
   __CRAB_assume(x >= 1.0);
@@ -28,6 +33,20 @@ double carthesianToPolar_theta(double x, double y) {
   return res;
 }
 
+double carthesianToPolar_theta_simplified(double x, double y) {
+  /* Preconditions */
+  __CRAB_assume(x >= 1.0);
+  __CRAB_assume(x <= 100.0);
+  __CRAB_assume(y >= 1.0);
+  __CRAB_assume(y <= 100.0);
+
+	double pi = 3.14159265359;
+	double radiant = atan((y / x));
+  double res = radiant * (57.295779513);
+  __CRAB_get_range(res);
+  return res;
+}
+
 double polarToCarthesian_X(double radius, double theta) {
   /* Preconditions */
   __CRAB_assume(radius >= 1.0);
@@ -42,6 +61,20 @@ double polarToCarthesian_X(double radius, double theta) {
   return res;
 }
 
+double polarToCarthesian_X_simplified(double radius, double theta) {
+  /* Preconditions */
+  __CRAB_assume(radius >= 1.0);
+  __CRAB_assume(radius <= 10.0);
+  __CRAB_assume(theta  >= 0.0);
+  __CRAB_assume(theta  <= 360.0);
+
+//	double pi = 3.14159265359;
+	double radiant = theta * (0.017453293);
+  double res = radius * cos(radiant);
+  __CRAB_get_range(res);
+  return res;
+}
+
 double polarToCarthesian_Y(double radius, double theta) {
   /* Preconditions */
   __CRAB_assume(radius >= 1.0);
@@ -51,6 +84,20 @@ double polarToCarthesian_Y(double radius, double theta) {
 
   double pi = 3.14159265359;
 	double radiant = theta * (pi / 180.0);
+  double res = radius * sin(radiant);
+  __CRAB_get_range(res);
+  return res;
+}
+
+double polarToCarthesian_Y_simplified(double radius, double theta) {
+  /* Preconditions */
+  __CRAB_assume(radius >= 1.0);
+  __CRAB_assume(radius <= 10.0);
+  __CRAB_assume(theta  >= 0.0);
+  __CRAB_assume(theta  <= 360.0);
+
+  double pi = 3.14159265359;
+	double radiant = theta * (0.017453293);
   double res = radius * sin(radiant);
   __CRAB_get_range(res);
   return res;

@@ -1262,6 +1262,7 @@ class CrabIntraBlockBuilder : public InstVisitor<CrabIntraBlockBuilder> {
   /* Most of the translation work happens in these methods */
   void doBinOp(unsigned op, var_t lhs, lin_exp_t op1, lin_exp_t op2);
   void doArithmetic(crab_lit_ref_t lit, BinaryOperator &i);
+  void doFNegOp(crab_lit_ref_t lit, UnaryOperator &i);
   var_t doBoolLogicOp(Instruction::BinaryOps op, crab_lit_ref_t lit,
                       const Value &v1, const Value &v2);
   void doIntLogicOp(crab_lit_ref_t lit, BinaryOperator &i);
@@ -1303,6 +1304,7 @@ public:
   void visitReturnInst(ReturnInst &I);
   void visitCmpInst(CmpInst &I);
   void visitBinaryOperator(BinaryOperator &I);
+  void visitUnaryOperator(UnaryOperator &I);
   void visitCastInst(CastInst &I);
   void visitSelectInst(SelectInst &I);
   void visitGetElementPtrInst(GetElementPtrInst &I);
@@ -1733,6 +1735,30 @@ void CrabIntraBlockBuilder::doIntLogicOp(crab_lit_ref_t lit,
   }
 }
 
+void CrabIntraBlockBuilder::doFNegOp(crab_lit_ref_t lit,
+                                     UnaryOperator &i) {
+    if (!lit || !lit->isVar() || (!lit->isInt() && !lit->isFP())) {
+        CLAM_ERROR("lhs of arithmetic operation must be an integer or floating-point");
+    }
+    var_t lhs = lit->getVar();
+
+    const Value &v1 = *i.getOperand(0);
+
+    crab_lit_ref_t lit1 = m_lfac.getLit(v1);
+    if (!lit1 || (!lit1->isInt() && !lit1->isFP())) {
+        havoc(lhs, valueToStr(i), m_bb, m_params.include_useless_havoc);
+        return;
+    }
+
+    lin_exp_t op1 = m_lfac.getExp(lit1);
+
+    if (op1.is_constant()) {
+        m_bb.assign(lhs, -op1.constant());
+    } else {
+        m_bb.mul(lhs, *op1.get_variable(), -1); // Simulate negation
+    }
+}
+
 // Deprecated: this code is for null and uaf checks added by LLVM
 // instrumentations.
 bool skipAssertionIfUntypedOrCyclic(CallInst &I, Value *cond, HeapAbstraction &mem,
@@ -2081,6 +2107,25 @@ void CrabIntraBlockBuilder::visitBinaryOperator(BinaryOperator &I) {
       doBoolLogicOp(I.getOpcode(), lit, *I.getOperand(0), *I.getOperand(1));
     else
       doIntLogicOp(lit, I);
+    break;
+  default:
+    havoc(lit->getVar(), valueToStr(I), m_bb, m_params.include_useless_havoc);
+  }
+}
+
+void CrabIntraBlockBuilder::visitUnaryOperator(UnaryOperator &I) {
+  crab::ScopedCrabStats __st__("CFG.Builder.visitUnaryOperator");
+  if (!isTracked(I, m_params))
+    return;
+
+  crab_lit_ref_t lit = m_lfac.getLit(I);
+  if (!lit || !(lit->isVar())) {
+    CLAM_ERROR("unexpected lhs of unary operator");
+  }
+
+  switch (I.getOpcode()) {
+  case BinaryOperator::FNeg:
+    doFNegOp(lit, I);
     break;
   default:
     havoc(lit->getVar(), valueToStr(I), m_bb, m_params.include_useless_havoc);

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e # To exit script if a command fails
 
 # Temporal script to compile all in amd-server machine
 

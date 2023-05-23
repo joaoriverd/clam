@@ -257,6 +257,7 @@ static const std::set<std::string> math_functions {
   "sinh", "cosh", "tanh", "asinh", "acosh", "atanh",
   "llvm.fabs.f64", // Special names for some math functions
   "__CRAB_get_range", // Special function for debugging. To remove later.
+  "__CRAB_get_planar_poly", // Special function for debugging. To remove later.
   "__CRAB_disable_accurate_math", // Special function for debugging. To remove later.
   "__CRAB_accuracy_level_1_math" // Special function for debugging. To remove later.
 };

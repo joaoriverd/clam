@@ -5,6 +5,7 @@ set -e # To exit script if a command fails
 
 # Compile elina
 cd /local/home/hectorr/repo/clam/build/crab/elina-prefix/src/elina
+make clean
 make ELINA_PREFIX=/local/home/hectorr/repo/clam/build/run/elina
 make install ELINA_PREFIX=/local/home/hectorr/repo/clam/build/run/elina
 

@@ -260,7 +260,9 @@ static const std::set<std::string> math_functions {
   "__CRAB_get_planar_poly", // Special function for debugging. To remove later.
   "__CRAB_disable_accurate_math", // Special function for debugging. To remove later.
   "__CRAB_accuracy_level_1_math", // Special function for debugging. To remove later.
-  "__CRAB_disable_sound_rounding" // Special function for debugging. To remove later.
+  "__CRAB_disable_sound_rounding", // Special function for debugging. To remove later.
+  "__CRAB_enable_sound_rounding", // Special function for debugging. To remove later.
+  "__CRAB_get_max_tvpi_error" // Special function for debugging. To remove later.
 };
 
 bool isMathFunction(const Function &F) {

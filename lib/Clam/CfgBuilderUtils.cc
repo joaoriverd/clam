@@ -256,7 +256,9 @@ static const std::set<std::string> math_functions {
   "sqrt", "cbrt", "pow", "sin", "cos", "tan", "asin", "acos", "atan", "atan2",
   "sinh", "cosh", "tanh", "asinh", "acosh", "atanh",
   "llvm.fabs.f64", // Special names for some math functions
-  "__CRAB_get_range" // Special function for debugging. To remove later.
+  "__CRAB_get_range", // Special function for debugging. To remove later.
+  "__CRAB_start_timer", // Special function for debugging. To remove later.
+  "__CRAB_stop_timer" // Special function for debugging. To remove later.
 };
 
 bool isMathFunction(const Function &F) {

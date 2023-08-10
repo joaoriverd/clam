@@ -6,13 +6,13 @@
 
 namespace clam {
 #ifdef HAVE_APRON
-using BASE(tvpi_domain_t) =
+using BASE(fpp_domain_t) =
   crab::domains::apron_domain<number_t, region_subdom_varname_t,
-			      crab::domains::apron_domain_id_t::APRON_TVPI>;
+			      crab::domains::apron_domain_id_t::APRON_FPP>;
 #else
-using BASE(tvpi_domain_t) =
+using BASE(fpp_domain_t) =
   crab::domains::elina_domain<number_t, region_subdom_varname_t,
-			      crab::domains::elina_domain_id_t::ELINA_TVPI>;
+			      crab::domains::elina_domain_id_t::ELINA_FPP>;
 #endif
-using tvpi_domain_t = RGN_FUN(ARRAY_FUN(BOOL_NUM(BASE(tvpi_domain_t))));
+using fpp_domain_t = RGN_FUN(ARRAY_FUN(BOOL_NUM(BASE(fpp_domain_t))));
 } // end namespace clam

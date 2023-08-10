@@ -17,8 +17,8 @@ void DomainRegistry::registerAllDomains() {
 //  register_term_dis_int_domain();
 //  register_num_domain();
   register_oct_domain();
-  register_tvpi_domain();
   register_pk_domain();
+  register_fpp_domain();
 //  register_sign_constant_domain();
 }
 

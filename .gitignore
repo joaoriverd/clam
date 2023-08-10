@@ -1,3 +1,8 @@
 /build/
 /debug/
 /ext/
+/crab/
+/install/
+/llvm-seahorn/
+/sea-dsa/
+/tests/clam_config.py

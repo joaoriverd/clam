@@ -5,4 +5,4 @@ else()
 endif()
 set(CRAB_REPO "https://github.com/joaoriverd/crab.git" CACHE STRING "crab repo")
 add_custom_target(crab-git
-  ${GIT_EXECUTABLE} clone ${CRAB_REPO} ${CRAB_SOURCE_DIR})
+  ${GIT_EXECUTABLE} clone ${CRAB_REPO} ${CRAB_SOURCE_DIR} --branch apron_support )

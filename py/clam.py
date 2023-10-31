@@ -334,7 +334,7 @@ def parseArgs(argv):
                     help='Size of the jump set used in widening', default=0)
     p.add_argument('--crab-narrowing-iterations',
                     type=int, dest='narrowing_iterations',
-                    help='Max number of narrowing iterations', default=3)
+                    help='Max number of narrowing iterations', default=2)
     p.add_argument('--crab-relational-threshold',
                     type=int, dest='num_threshold',
                     help='Max number of live vars per block before switching to a non-relational domain',
